@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { protect } = require("../middleware/authMiddleware");
+const { protect, authorize } = require("../middleware/authMiddleware");
 const {
   addInternship,
   getInternships,
@@ -9,12 +9,13 @@ const {
   deleteInternship,
 } = require("../controllers/internshipController");
 
-router.route("/").get(protect, getInternships).post(protect, addInternship);
+router.route("/")
+  .get(protect, authorize("student", "placement", "admin"), getInternships)
+  .post(protect, authorize("student", "placement", "admin"), addInternship);
 
-router
-  .route("/:id")
-  .get(protect, getInternship)
-  .put(protect, updateInternship)
-  .delete(protect, deleteInternship);
+router.route("/:id")
+  .get(protect, authorize("student", "placement", "admin"), getInternship)
+  .put(protect, authorize("student", "placement", "admin"), updateInternship)
+  .delete(protect, authorize("student", "admin"), deleteInternship);
 
 module.exports = router;

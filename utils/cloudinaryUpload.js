@@ -1,36 +1,24 @@
 // backend/utils/cloudinaryUpload.js
-
-const { cloudinary } = require("../config/cloudinary");
+const cloudinary = require("cloudinary").v2;
 const streamifier = require("streamifier");
 
-const uploadToCloudinary = (fileBuffer, folder, resourceType = "auto") => {
+const uploadToCloudinary = (fileBuffer, folder, resourceType = "image") => {
   return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        folder,
-        resource_type: resourceType,
-        use_filename: true,
-        unique_filename: true,
-      },
+    const stream = cloudinary.uploader.upload_stream(
+      { folder, resource_type: resourceType },
       (error, result) => {
         if (error) reject(error);
         else resolve(result);
       }
     );
-    streamifier.createReadStream(fileBuffer).pipe(uploadStream);
+    streamifier.createReadStream(fileBuffer).pipe(stream);
   });
 };
 
 const deleteFromCloudinary = async (publicId, resourceType = "image") => {
-  try {
-    const result = await cloudinary.uploader.destroy(publicId, {
-      resource_type: resourceType,
-    });
-    return result;
-  } catch (error) {
-    console.error("Cloudinary delete error:", error);
-    throw error;
-  }
+  return await cloudinary.uploader.destroy(publicId, {
+    resource_type: resourceType,
+  });
 };
 
 module.exports = { uploadToCloudinary, deleteFromCloudinary };

@@ -4,20 +4,18 @@ const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 
 // ─────────────────────────────────────────────
-// HELPER: Generate JWT Token
-// Called after register and login
+// GENERATE JWT TOKEN
 // ─────────────────────────────────────────────
 const generateToken = (id) => {
   return jwt.sign(
-    { id }, // Payload: user's MongoDB _id
-    process.env.JWT_SECRET, // Secret key from .env
-    { expiresIn: process.env.JWT_EXPIRE || "7d" } // Expiry
+    { id },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRE || "7d" }
   );
 };
 
 // ─────────────────────────────────────────────
-// HELPER: Send token response
-// Sends user data + token in a consistent format
+// SEND TOKEN RESPONSE
 // ─────────────────────────────────────────────
 const sendTokenResponse = (user, statusCode, res) => {
   const token = generateToken(user._id);
@@ -38,51 +36,53 @@ const sendTokenResponse = (user, statusCode, res) => {
 };
 
 // ─────────────────────────────────────────────
-// @desc    Register a new user
-// @route   POST /api/auth/register
-// @access  Public
+// REGISTER USER
+// POST /api/auth/register
 // ─────────────────────────────────────────────
 const register = async (req, res, next) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role } = req.body;
 
-    // 1. Check all fields are provided
+    // validation
     if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: "Please provide name, email and password",
+        message: "Please provide name, email, and password",
       });
     }
 
-    // 2. Check if user already exists
+    // check existing user
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: "Email already registered. Please login instead.",
+        message: "User already exists",
       });
     }
 
-    // 3. Create new user (password is hashed by pre-save hook)
-    const user = await User.create({ name, email, password });
+    // create user (password hashed in model pre-save hook)
+    const user = await User.create({
+      name,
+      email,
+      password,
+      role: role || "student",
+    });
 
-    // 4. Send back token + user data
     sendTokenResponse(user, 201, res);
   } catch (error) {
-    next(error); // Pass to global error handler
+    next(error);
   }
 };
 
 // ─────────────────────────────────────────────
-// @desc    Login existing user
-// @route   POST /api/auth/login
-// @access  Public
+// LOGIN USER
+// POST /api/auth/login
 // ─────────────────────────────────────────────
 const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    // 1. Check fields are provided
+    // validation
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -90,31 +90,30 @@ const login = async (req, res, next) => {
       });
     }
 
-    // 2. Find user and explicitly include password field
-    // (password has select:false in schema so we must add it back)
+    // find user + include password
     const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Invalid email or password",
+        message: "Invalid credentials",
       });
     }
 
-    // 3. Compare entered password with hashed password
+    // check password
     const isMatch = await user.comparePassword(password);
+
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: "Invalid email or password",
+        message: "Invalid credentials",
       });
     }
 
-    // 4. Update last login time
+    // update last login
     user.lastLogin = new Date();
     await user.save({ validateBeforeSave: false });
 
-    // 5. Send token response
     sendTokenResponse(user, 200, res);
   } catch (error) {
     next(error);
@@ -122,13 +121,11 @@ const login = async (req, res, next) => {
 };
 
 // ─────────────────────────────────────────────
-// @desc    Get currently logged in user profile
-// @route   GET /api/auth/me
-// @access  Private (requires JWT)
+// GET CURRENT USER (PROFILE)
+// GET /api/auth/me
 // ─────────────────────────────────────────────
 const getMe = async (req, res, next) => {
   try {
-    // req.user is set by the protect middleware
     const user = await User.findById(req.user.id);
 
     res.status(200).json({
@@ -141,32 +138,26 @@ const getMe = async (req, res, next) => {
 };
 
 // ─────────────────────────────────────────────
-// @desc    Update user profile (name, email)
-// @route   PUT /api/auth/update-profile
-// @access  Private
+// UPDATE PROFILE
+// PUT /api/auth/update-profile
 // ─────────────────────────────────────────────
 const updateProfile = async (req, res, next) => {
   try {
     const { name, email } = req.body;
 
-    // Build update object with only provided fields
-    const fieldsToUpdate = {};
-    if (name) fieldsToUpdate.name = name;
-    if (email) fieldsToUpdate.email = email;
-
-    const user = await User.findByIdAndUpdate(
+    const updatedUser = await User.findByIdAndUpdate(
       req.user.id,
-      fieldsToUpdate,
+      { name, email },
       {
-        new: true,           // Return updated document
-        runValidators: true, // Run schema validators on update
+        new: true,
+        runValidators: true,
       }
     );
 
     res.status(200).json({
       success: true,
       message: "Profile updated successfully",
-      user,
+      user: updatedUser,
     });
   } catch (error) {
     next(error);
@@ -174,9 +165,8 @@ const updateProfile = async (req, res, next) => {
 };
 
 // ─────────────────────────────────────────────
-// @desc    Change user password
-// @route   PUT /api/auth/change-password
-// @access  Private
+// CHANGE PASSWORD
+// PUT /api/auth/change-password
 // ─────────────────────────────────────────────
 const changePassword = async (req, res, next) => {
   try {
@@ -189,11 +179,10 @@ const changePassword = async (req, res, next) => {
       });
     }
 
-    // Get user with password included
     const user = await User.findById(req.user.id).select("+password");
 
-    // Check current password is correct
     const isMatch = await user.comparePassword(currentPassword);
+
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -201,19 +190,21 @@ const changePassword = async (req, res, next) => {
       });
     }
 
-    // Set new password (pre-save hook will hash it)
     user.password = newPassword;
     await user.save();
 
     res.status(200).json({
       success: true,
-      message: "Password changed successfully",
+      message: "Password updated successfully",
     });
   } catch (error) {
     next(error);
   }
 };
 
+// ─────────────────────────────────────────────
+// EXPORTS
+// ─────────────────────────────────────────────
 module.exports = {
   register,
   login,

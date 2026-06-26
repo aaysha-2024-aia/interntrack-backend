@@ -1,80 +1,92 @@
 // backend/server.js
 
-// ─────────────────────────────────────────────
-// 1. IMPORT DEPENDENCIES
-// ─────────────────────────────────────────────
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const path = require("path");
 const morgan = require("morgan");
 
-// ─────────────────────────────────────────────
-// 2. LOAD ENVIRONMENT VARIABLES
-// ─────────────────────────────────────────────
+// Load env
 dotenv.config();
 
-// ─────────────────────────────────────────────
-// 3. IMPORT LOCAL MODULES
-// ─────────────────────────────────────────────
+// Local modules
 const connectDB = require("./config/db");
 const { cloudinaryConnect } = require("./config/cloudinary");
 const errorHandler = require("./middleware/errorHandler");
 
-// ─────────────────────────────────────────────
-// 4. CONNECT TO MONGODB & CLOUDINARY
-// ─────────────────────────────────────────────
+// Connect DB + Cloudinary
 connectDB();
 cloudinaryConnect();
 
-// ─────────────────────────────────────────────
-// 5. INITIALIZE EXPRESS APP
-// ─────────────────────────────────────────────
 const app = express();
 
-// ─────────────────────────────────────────────
-// 6. CORE MIDDLEWARE
-// ─────────────────────────────────────────────
-app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"],
-  credentials: true
-}));
+// ─────────────────────────────
+// CORS (PRODUCTION READY)
+// ─────────────────────────────
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  process.env.FRONTEND_URL
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("CORS blocked"));
+    },
+    credentials: true,
+  })
+);
+
+// ─────────────────────────────
+// CORE MIDDLEWARE
+// ─────────────────────────────
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
+
+// Static uploads
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// ─────────────────────────────────────────────
-// 7. API ROUTES
-// ─────────────────────────────────────────────
-const authRoutes = require("./routes/authRoutes");
-const internshipRoutes = require("./routes/internshipRoutes");
-const uploadRoutes = require("./routes/uploadRoutes");
+// ─────────────────────────────
+// ROUTES
+// ─────────────────────────────
+app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/internships", require("./routes/internshipRoutes"));
+app.use("/api/upload", require("./routes/uploadRoutes"));
+app.use("/api/profile", require("./routes/studentProfileRoutes"));
+app.use("/api/applications", require("./routes/applicationRoutes"));
+app.use("/api/dashboard", require("./routes/dashboardRoutes"));
+app.use("/api/user", require("./routes/userRoutes"));
 
-app.use("/api/auth", authRoutes);
-app.use("/api/internships", internshipRoutes);
-app.use("/api/upload", uploadRoutes);
-
-// Health-check route
+// Health check
 app.get("/", (req, res) => {
   res.json({
     success: true,
-    message: "🚀 Smart Internship Tracker API is running!",
-    environment: process.env.NODE_ENV,
+    message: "🚀 InternTrack Pro API Running",
+    environment: process.env.NODE_ENV || "development",
   });
 });
 
-// ─────────────────────────────────────────────
-// 8. GLOBAL ERROR HANDLER (must be LAST)
-// ─────────────────────────────────────────────
+// Error handler
 app.use(errorHandler);
 
-// ─────────────────────────────────────────────
-// 9. START SERVER
-// ─────────────────────────────────────────────
+// ─────────────────────────────
+// SERVER START
+// ─────────────────────────────
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`✅ Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(
+    `🚀 Server running in ${process.env.NODE_ENV} mode on port ${PORT}`
+  );
 });
