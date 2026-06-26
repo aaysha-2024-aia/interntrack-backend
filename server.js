@@ -38,7 +38,7 @@ app.use(
         return callback(null, true);
       }
 
-      return callback(new Error("CORS blocked"));
+      return callback(null, true); // allow all in production (prevents Railway issues)
     },
     credentials: true,
   })
@@ -68,7 +68,9 @@ app.use("/api/applications", require("./routes/applicationRoutes"));
 app.use("/api/dashboard", require("./routes/dashboardRoutes"));
 app.use("/api/user", require("./routes/userRoutes"));
 
-// Health check
+// ─────────────────────────────
+// ROOT ROUTE
+// ─────────────────────────────
 app.get("/", (req, res) => {
   res.json({
     success: true,
@@ -77,7 +79,20 @@ app.get("/", (req, res) => {
   });
 });
 
-// Error handler
+// ─────────────────────────────
+// HEALTH CHECK (IMPORTANT FOR RAILWAY/RENDER)
+// ─────────────────────────────
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "InternTrack Pro API Healthy 🚀",
+    uptime: process.uptime(),
+  });
+});
+
+// ─────────────────────────────
+// ERROR HANDLER
+// ─────────────────────────────
 app.use(errorHandler);
 
 // ─────────────────────────────
