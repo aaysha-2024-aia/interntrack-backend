@@ -29,21 +29,17 @@ const allowedOrigins = [
   process.env.FRONTEND_URL
 ];
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(null, true); // allow all in production (prevents Railway issues)
-    },
-    credentials: true,
-  })
-);
-
+app.use(cors({
+  origin: [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://localhost:3003",
+    "https://interntrack-frontend-1nba0lkw6-aaysha-2024-aias-projects.vercel.app",
+    "https://interntrack-frontend-rvlk.vercel.app"
+  ],
+  credentials: true
+}));
 // ─────────────────────────────
 // CORE MIDDLEWARE
 // ─────────────────────────────
