@@ -35,8 +35,10 @@ app.use(cors({
     "http://localhost:3001",
     "http://localhost:3002",
     "http://localhost:3003",
+    "https://interntrack-frontend-six.vercel.app",
+    "https://interntrack-frontend-git-main-aaysha-2024-aias-projects.vercel.app",
     "https://interntrack-frontend-1nba0lkw6-aaysha-2024-aias-projects.vercel.app",
-    "https://interntrack-frontend-rvlk.vercel.app"
+    "https://interntrack-frontend-ki8uwx9tm-aaysha-2024-aias-projects.vercel.app"
   ],
   credentials: true
 }));
